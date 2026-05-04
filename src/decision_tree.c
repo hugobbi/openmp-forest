@@ -3,10 +3,21 @@
 #include <float.h>
 #include <string.h>
 
-// Used for qsort when finding best split
-// TODO: this needs to be changed for parallel version
-static int   g_sort_feature;
-static Sample *g_sort_data;
+typedef struct {
+    int feature_index;
+    Sample *data;
+} SortContext;
+
+// Used for qsort_r to sort indices by feature value
+static int cmp_by_feature(const void *a, const void *b, void *ctx)
+{
+    SortContext *sort_ctx = (SortContext *)ctx;
+    int ia = *(int *)a;
+    int ib = *(int *)b;
+    double va = sort_ctx->data[ia].features[sort_ctx->feature_index];
+    double vb = sort_ctx->data[ib].features[sort_ctx->feature_index];
+    return (va > vb) - (va < vb);
+}
 
 // Computes impurity of a node using Gini index
 double compute_gini(Sample *data, int *indices, int n, int n_classes) 
@@ -47,15 +58,6 @@ int majority_class(Sample *data, int *indices, int n, int n_classes)
     return best;
 }
 
-// Used for qsort to sort indices by feature value
-int cmp_by_feature(const void *a, const void *b) 
-{
-    int ia = *(int*)a, ib = *(int*)b;
-    double va = g_sort_data[ia].features[g_sort_feature];
-    double vb = g_sort_data[ib].features[g_sort_feature];
-    return (va > vb) - (va < vb);
-}
-
 // Finds the best split by testing all features and thresholds
 BestSplit find_best_split(Sample *data, int *indices, int n, 
                             int n_features, int n_classes) 
@@ -67,11 +69,10 @@ BestSplit find_best_split(Sample *data, int *indices, int n,
     for (int f = 0; f < n_features; f++) {
         // Sort indices by feature f
         int sorted[MAX_SAMPLES];
+        SortContext sort_ctx = { f, data };
         memcpy(sorted, indices, n * sizeof(int));
-        // Calls stdlib qsort, which will call cmp_by_feature
-        g_sort_feature = f;
-        g_sort_data = data;
-        qsort(sorted, n, sizeof(int), cmp_by_feature);
+        // Calls GNU qsort_r, which passes per-call sort context to the comparator
+        qsort_r(sorted, n, sizeof(int), cmp_by_feature, &sort_ctx);
 
         // Tests each split point between consecutive values
         for (int i = 0; i < n - 1; i++) {

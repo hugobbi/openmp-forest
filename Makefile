@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -I$(INCDIR)
+CFLAGS = -Wall -Wextra -D_GNU_SOURCE -I$(INCDIR)
 SRCDIR = src
 BINDIR = bin
 INCDIR = include

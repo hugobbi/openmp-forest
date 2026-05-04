@@ -27,7 +27,6 @@ typedef struct {
 double compute_gini(Sample *data, int *indices, int n, int n_classes);
 double gini_split(double gini_left,  int n_left, double gini_right, int n_right);
 int majority_class(Sample *data, int *indices, int n, int n_classes);
-int cmp_by_feature(const void *a, const void *b);
 BestSplit find_best_split(Sample *data, int *indices, int n, 
                           int n_features, int n_classes);
 Node *build_tree(Sample *data, int *indices, int n,
