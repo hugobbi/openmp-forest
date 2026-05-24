@@ -1,8 +1,8 @@
 #ifndef DECISION_TREE_H
 #define DECISION_TREE_H
 
-#define MAX_SAMPLES 100
-#define MAX_FEATURES 10
+#define MAX_SAMPLES 1000
+#define MAX_FEATURES 25000
 #define MAX_DEPTH 5
 
 typedef struct Node {
