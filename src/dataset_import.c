@@ -35,12 +35,16 @@ Dataset *csv_read_delim(const char *path, char delim) {
         return NULL;
     }
 
-    char line[CSV_LINE_MAX];
+    char *line = NULL;
+    size_t linecap = 0;
+    ssize_t linelen;
 
-    // Skip header row.
-    if (!fgets(line, sizeof(line), fp)) {
-        fprintf(stderr, "csv_read: '%s' is empty\n", path);
+    // Read header row 
+    linelen = getline(&line, &linecap, fp);
+    if (linelen == -1) {
+        fprintf(stderr, "csv_read: '%s' is empty or cannot read header\n", path);
         fclose(fp);
+        free(line);
         return NULL;
     }
     strip_newline(line);
@@ -71,10 +75,10 @@ Dataset *csv_read_delim(const char *path, char delim) {
     int n_classes = 0; // track max label seen + 1
     int row = 1;       // row counter for error messages (1-indexed, after header)
 
-    while (fgets(line, sizeof(line), fp)) {
+    while ((linelen = getline(&line, &linecap, fp)) != -1) {
         row++;
         strip_newline(line);
-        if (line[0] == '\0') continue; // skip blank lines
+        if (line[0] == '\0') continue; /* skip blank lines */
 
         if (n_samples >= MAX_SAMPLES) {
             fprintf(stderr, "csv_read: warning: row %d exceeds MAX_SAMPLES (%d), truncating\n",
@@ -94,6 +98,7 @@ Dataset *csv_read_delim(const char *path, char delim) {
                 fprintf(stderr, "csv_read: row %d col %d: invalid number\n", row, f + 1);
                 free(samples);
                 fclose(fp);
+                free(line);
                 return NULL;
             }
             if (*end != delim && f < n_features - 1) {
@@ -101,6 +106,7 @@ Dataset *csv_read_delim(const char *path, char delim) {
                         row, n_cols);
                 free(samples);
                 fclose(fp);
+                free(line);
                 return NULL;
             }
             cursor = end + 1; // step past delimiter
@@ -113,6 +119,7 @@ Dataset *csv_read_delim(const char *path, char delim) {
             fprintf(stderr, "csv_read: row %d: invalid label '%s'\n", row, cursor);
             free(samples);
             fclose(fp);
+            free(line);
             return NULL;
         }
         s->label = (int)label;
@@ -122,7 +129,7 @@ Dataset *csv_read_delim(const char *path, char delim) {
     }
 
     fclose(fp);
-
+    free(line);
     if (n_samples == 0) {
         fprintf(stderr, "csv_read: no data rows found in '%s'\n", path);
         free(samples);

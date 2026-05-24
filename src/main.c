@@ -1,41 +1,57 @@
 #include "decision_tree.h"
 #include "dataset_import.h"
 #include <stdio.h>
+#include <time.h>
 
-int main(int argc, char *argv[]) {
-    // Example using csv_read:
-    //
-    //   Dataset *ds = csv_read("data/dataset.csv");
-    //   int indices[MAX_SAMPLES];
-    //   for (int i = 0; i < ds->n_samples; i++) indices[i] = i;
-    //   Node *tree = build_tree(ds->samples, indices, ds->n_samples,
-    //                           ds->n_features, ds->n_classes, 0, MAX_DEPTH);
-    //   double test_features[] = {5.1, 3.5, 1.4, 0.2};
-    //   int pred = predict(tree, test_features);
-    //   printf("Predicted class: %d\n", pred);
-    //   free_tree(tree);
-    //   dataset_free(ds);
+int main() 
+{    
+    printf("Loading training dataset...\n");
+    Dataset *ds = csv_read("data/processed/train.csv");
+    if (!ds) {
+        fprintf(stderr, "Failed to load train dataset\n");
+        return 1;
+    }
 
-    // Hardcoded sample dataset: [income, bought?]
-    Sample data[] = {
-        {{30.0}, 0},
-        {{40.0}, 0},
-        {{50.0}, 1},
-        {{60.0}, 1},
-        {{70.0}, 1}
-    };
-    int n_samples = sizeof(data) / sizeof(Sample);
-    int n_features = 1;
-    int n_classes = 2;
-
+    printf("Building decision tree...\n");
     int indices[MAX_SAMPLES];
-    for (int i = 0; i < n_samples; i++) indices[i] = i;
-    Node *tree = build_tree(data, indices, n_samples, n_features, n_classes, 0, MAX_DEPTH);
+    for (int i = 0; i < ds->n_samples; i++) indices[i] = i;
+    clock_t start = clock();
+    Node *tree = build_tree(ds->samples, indices, ds->n_samples,
+                            ds->n_features, ds->n_classes, 0, MAX_DEPTH);
+    clock_t end = clock();
+    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Tree built in %.4f seconds\n", time_spent);
 
-    double test_features[] = {55.0};
-    int pred = predict(tree, test_features);
-    printf("Predicted class for income=55.0: %d\n", pred);
+    printf("Measuring accuracy in test dataset...\n");
+    Dataset *test_ds = csv_read("data/processed/test.csv");
+    if (!test_ds) {
+        fprintf(stderr, "Failed to load test dataset\n");
+        free_tree(tree);
+        dataset_free(ds);
+        return 1;
+    }
+    double avg_inference_time = 0.0;
+    int correct = 0;
+    for (int i = 0; i < test_ds->n_samples; i++) {
+        start = clock();
+        int pred = predict(tree, test_ds->samples[i].features);
+        end = clock();
+        time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+        avg_inference_time += time_spent;
+        if (pred != test_ds->samples[i].label) {
+            printf("Sample %d: predicted %d, actual %d\n", i, pred, test_ds->samples[i].label);
+        } else {
+            correct++;
+        }
+    }
+    float accuracy = (float)correct / test_ds->n_samples;
+    avg_inference_time /= test_ds->n_samples;
+    printf("Accuracy: %.2f%% (%d/%d correct)\n", accuracy * 100, correct, test_ds->n_samples);
+    printf("Average inference time: %f seconds\n", avg_inference_time);
 
     free_tree(tree);
+    dataset_free(ds);
+    dataset_free(test_ds);
+    
     return 0;
 }
