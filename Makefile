@@ -8,7 +8,7 @@ OBJDIR = $(BINDIR)
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 INCLUDES = $(wildcard $(INCDIR)/*.h)
 OBJECTS = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES))
-TARGET = $(BINDIR)/program
+TARGET = $(BINDIR)/dt_program
 
 all: $(BINDIR) $(TARGET)
 

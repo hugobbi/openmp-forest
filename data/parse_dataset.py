@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 if __name__ == "__main__":
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.makedirs("processed", exist_ok=True)
 
     print("Loading raw data...")
@@ -23,9 +24,13 @@ if __name__ == "__main__":
     df = pd.merge(df_data, df_labels, on="sample").drop(columns=["sample"])
 
     print("Merged DataFrame:\n", df.head())
+    print("Label distribution:\n", df["label"].value_counts())
+    df.to_csv("processed/merged_data.csv", index=False)
 
     df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
     print("Train set:\n", df_train.head(), "\n\nTest set:\n", df_test.head())
+    print("Train label distribution:\n", df_train["label"].value_counts())
+    print("Test label distribution:\n", df_test["label"].value_counts())
 
     df_train.to_csv("processed/train.csv", index=False)
     df_test.to_csv("processed/test.csv", index=False)
