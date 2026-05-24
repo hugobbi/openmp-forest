@@ -57,3 +57,4 @@ dkms.conf
 
 # Project specific
 *.csv
+results/
