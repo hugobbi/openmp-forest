@@ -1,10 +1,12 @@
 #include "decision_tree.h"
 #include "dataset_import.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include <omp.h>
 
 /*
     Label mapping: {'PRAD': 0, 'LUAD': 1, 'BRCA': 2, 'KIRC': 3, 'COAD': 4}
@@ -15,7 +17,46 @@
     COAD 	Colon adenocarcinoma (colon)
 */
 
-int main() 
+// k-fold evaluation function 
+#define K 5
+
+void k_fold_eval(Dataset *ds, int k) {
+    int fold_size = ds->n_samples / k;
+    float acc_sum = 0.0;
+
+    for (int fold = 0; fold < k; fold++) {
+        int test_start = fold * fold_size;
+        int test_end   = test_start + fold_size;
+
+        // Build train indices (everything outside this fold)
+        int train_idx[MAX_SAMPLES], n_train = 0;
+        for (int i = 0; i < ds->n_samples; i++) {
+            if (i < test_start || i >= test_end)
+                train_idx[n_train++] = i;
+        }
+
+        Node *tree = build_tree(ds->samples, train_idx, n_train,
+                                ds->n_features, ds->n_classes, 0, MAX_DEPTH);
+
+        // Evaluate on this fold
+        int correct = 0;
+        for (int i = test_start; i < test_end; i++) {
+            if (predict(tree, ds->samples[i].features) == ds->samples[i].label)
+                correct++;
+        }
+
+        float acc = (float)correct / fold_size;
+        printf("Fold %d: %.4f (%d/%d)\n", fold + 1, acc, correct, fold_size);
+        acc_sum += acc;
+        free_tree(tree);
+    }
+
+    printf("Mean accuracy: %.4f\n", acc_sum / k);
+}
+
+#define DEFAULT_NUM_THREADS 1
+
+int main(int argc, char *argv[]) 
 {    
     // Load data
     printf("Loading training dataset...\n");
@@ -25,15 +66,26 @@ int main()
         return 1;
     }
 
+    // Setup openmp params
+    if (argc > 1) {
+        int n_threads = atoi(argv[1]);
+        if (n_threads > 0) {
+            printf("Using %d threads\n", n_threads);
+            omp_set_num_threads(n_threads);
+        }
+    } else {
+        printf("Using default %d threads\n", DEFAULT_NUM_THREADS);
+        omp_set_num_threads(DEFAULT_NUM_THREADS);
+    }
+
     // "Train" tree
     printf("Building decision tree...\n");
     int indices[MAX_SAMPLES];
     for (int i = 0; i < ds->n_samples; i++) indices[i] = i;
-    clock_t start = clock();
+    double t0 = omp_get_wtime();
     Node *tree = build_tree(ds->samples, indices, ds->n_samples,
                             ds->n_features, ds->n_classes, 0, MAX_DEPTH);
-    clock_t end = clock();
-    double build_time = (double)(end - start) / CLOCKS_PER_SEC;
+    double build_time = omp_get_wtime() - t0;
     printf("Tree built in %.4f seconds\n", build_time);
     
     // Measure accuracy
@@ -48,10 +100,9 @@ int main()
     double avg_inference_time = 0.0;
     int correct = 0;
     for (int i = 0; i < test_ds->n_samples; i++) {
-        start = clock();
+        t0 = omp_get_wtime();
         int pred = predict(tree, test_ds->samples[i].features);
-        end = clock();
-        double inference_time = (double)(end - start) / CLOCKS_PER_SEC;
+        double inference_time = omp_get_wtime() - t0;
         avg_inference_time += inference_time;
         if (pred != test_ds->samples[i].label) {
             printf("Sample %d: predicted %d, actual %d\n", i, pred, test_ds->samples[i].label);
@@ -74,9 +125,12 @@ int main()
     strftime(results_filename, sizeof(results_filename), "results/%Y%m%d_%H%M%S_results.txt", &tm);
     FILE *f = fopen(results_filename, "w");
     if (f) {
-        fprintf(f, "Tree build time: %.6f\n", build_time);
-        fprintf(f, "Test accuracy: %.6f (%d/%d)\n", test_accuracy, correct, test_ds->n_samples);
-        fprintf(f, "Test avg inference time: %.9f\n", avg_inference_time);
+        fprintf(f, "build time=%.6f\n", build_time);
+        fprintf(f, "test accuracy=%.6f (%d/%d)\n", test_accuracy, correct, test_ds->n_samples);
+        fprintf(f, "avg inference time=%.6f\n", avg_inference_time);
+        fprintf(f, "MAX_SAMPLES=%d\nMAX_FEATURES= %d\nMAX_DEPTH= %d\n",
+                MAX_SAMPLES, MAX_FEATURES, MAX_DEPTH);
+        fprintf(f, "threads=%d\n", omp_get_max_threads());
         fclose(f);
         printf("Results saved to %s\n", results_filename);
     } else {

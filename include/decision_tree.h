@@ -11,7 +11,7 @@ typedef struct Node {
     double threshold;      
     int    predicted_class; // (only in leaf nodes)
     double impurity;        // node impurity (e.g., Gini)
-    int    n_samples;      
+    int    n_samples;
     struct Node *left;  
     struct Node *right;
 } Node;

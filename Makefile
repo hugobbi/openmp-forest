@@ -10,6 +10,8 @@ INCLUDES = $(wildcard $(INCDIR)/*.h)
 OBJECTS = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES))
 TARGET = $(BINDIR)/dt_program
 
+THREADS ?= 1
+
 all: $(BINDIR) $(TARGET)
 
 $(BINDIR):
@@ -22,7 +24,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c $(INCLUDES) | $(BINDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	./$(TARGET)
+	./$(TARGET) $(THREADS)
 
 clean:
 	rm -rf $(BINDIR)
