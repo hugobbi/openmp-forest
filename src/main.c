@@ -3,6 +3,15 @@
 #include <stdio.h>
 #include <time.h>
 
+/*
+    Label mapping: {'PRAD': 0, 'LUAD': 1, 'BRCA': 2, 'KIRC': 3, 'COAD': 4}
+    PRAD 	Prostate adenocarcinoma (prostate)
+    LUAD 	Lung adenocarcinoma (lung)
+    BRCA 	Breast invasive carcinoma (breast cancer)
+    KIRC 	Kidney renal clear cell carcinoma (kidney)
+    COAD 	Colon adenocarcinoma (colon)
+*/
+
 int main() 
 {    
     printf("Loading training dataset...\n");
