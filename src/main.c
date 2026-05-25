@@ -18,15 +18,16 @@
 */
 
 /*
-    config='s': always parallelize splits
+    config='p': always parallelize splits
     config='t': parallelize splits only if n >= PARALLEL_SPLIT_THRESHOLD (currently 100, but can be tuned).
                 otherwise parallelizes tree node creation
     config='n': paralleize only node creation, never splits (not recommended, just for testing)
-    config='p': paralllelize both splits and node creation, no threshold (not recommended, just for testing)
+    config='P': paralllelize both splits and node creation, no threshold (not recommended, just for testing)
+    config='s': sequential, no parallelization (for testing)
 */
 
 #define DEFAULT_NUM_THREADS 1
-#define DEFAULT_STRATEGY 's' // default parallelization strategy: 's' for splits, 't' for thresholded splits, 'n' for node-only, 'p' for always parallel
+#define DEFAULT_STRATEGY 'p' // default parallelization strategy: 'p' for splits, 't' for thresholded splits, 'n' for node-only, 'P' for always parallel
 
 int main(int argc, char *argv[])
 {
@@ -62,6 +63,11 @@ int main(int argc, char *argv[])
     {
         omp_set_max_active_levels(2);
     }
+    if (config == 's')
+    {
+        printf("Running in sequential mode (no parallelization)\n");
+        omp_set_num_threads(1);
+    }
 
     // "Train" tree
     printf("Building decision tree...\n");
@@ -80,7 +86,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Node *tree = build_tree(ds->samples, indices, ds->n_samples, ds->n_features, ds->n_classes, 0, MAX_DEPTH);
     printf("Tree built in %.4f seconds\n", build_time);
     printf("Tree depth: %d\n", get_tree_depth(tree));
 

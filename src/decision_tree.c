@@ -222,7 +222,7 @@ Node *build_tree(Sample *data, int *indices, int n,
 
     BestSplit split;
     // Use parallel split search for larger nodes, sequential for small nodes to avoid overhead
-    if ((n >= PARALLEL_SPLIT_THRESHOLD && config == 't') || config == 's' || config == 'p')
+    if ((n >= PARALLEL_SPLIT_THRESHOLD && config == 't') || config == 'p' || config == 'P')
     {
         // Uses parallel split search if too many samples
         split = find_best_split_parallel(data, indices, n, n_features, n_classes);
@@ -257,7 +257,7 @@ Node *build_tree(Sample *data, int *indices, int n,
             right_idx[nr++] = indices[i];
     }
 
-    if ((n >= PARALLEL_SPLIT_THRESHOLD && config == 't') || config == 's')
+    if ((n >= PARALLEL_SPLIT_THRESHOLD && config == 't') || config == 'p' || config == 's')
     {
         node->left = build_tree(data, left_idx, nl, n_features, n_classes, depth + 1, max_depth, config);
         node->right = build_tree(data, right_idx, nr, n_features, n_classes, depth + 1, max_depth, config);
