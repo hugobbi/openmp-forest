@@ -11,6 +11,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES))
 TARGET = $(BINDIR)/dt_program
 
 THREADS ?= 1
+STRAETGY ?= s
 
 all: $(BINDIR) $(TARGET)
 
@@ -24,7 +25,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c $(INCLUDES) | $(BINDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	./$(TARGET) $(THREADS)
+	./$(TARGET) $(THREADS) $(STRATEGY)
 
 clean:
 	rm -rf $(BINDIR)

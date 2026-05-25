@@ -3,6 +3,7 @@
 
 #define MAX_SAMPLES 1000
 #define MAX_FEATURES 25000
+#define MAX_CLASSES 100
 #define MAX_DEPTH 5
 
 typedef struct Node {
@@ -30,12 +31,15 @@ typedef struct {
 double compute_gini(Sample *data, int *indices, int n, int n_classes);
 double gini_split(double gini_left,  int n_left, double gini_right, int n_right);
 int majority_class(Sample *data, int *indices, int n, int n_classes);
-BestSplit find_best_split(Sample *data, int *indices, int n, 
+BestSplit find_best_split_parallel(Sample *data, int *indices, int n,
+                          int n_features, int n_classes);
+BestSplit find_best_split_sequential(Sample *data, int *indices, int n,
                           int n_features, int n_classes);
 Node *build_tree(Sample *data, int *indices, int n,
                  int n_features, int n_classes,
-                 int depth, int max_depth);
+                 int depth, int max_depth, char config);
 int predict(Node *node, double *features);
+int get_tree_depth(const Node *node);
 void free_tree(Node *node);
 
 #endif // DECISION_TREE_H
