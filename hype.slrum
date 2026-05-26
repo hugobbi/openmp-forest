@@ -8,9 +8,9 @@
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 
-set -euo pipefail
-
 source /home/intel/oneapi/vtune/2021.1.1/vtune-vars.sh
+
+set -euo pipefail
 
 PROJECT_NAME="openmp-forest"
 HOME_PROJECT="$HOME/$PROJECT_NAME"
@@ -28,8 +28,10 @@ THREADS="${SLURM_CPUS_PER_TASK:-40}"
 STRATEGY=p
 export OMP_NUM_THREADS="$THREADS"
 
+rm -rf "$SCRATCH/r_snapshot" "$SCRATCH/r_hotspots" "$SCRATCH/r_hpc"
+
 vtune -collect performance-snapshot -result-dir "$SCRATCH/r_snapshot" -- ./bin/dt_program "$THREADS" "$STRATEGY"
-vtune -collect hotspots              -result-dir "$SCRATCH/r_hotspots" -- ./bin/dt_program "$THREADS" "$STRATEGY"
+vtune -collect hotspots -knob sampling-mode=hw -result-dir "$SCRATCH/r_hotspots" -- ./bin/dt_program "$THREADS" "$STRATEGY"
 vtune -collect hpc-performance       -result-dir "$SCRATCH/r_hpc"      -- ./bin/dt_program "$THREADS" "$STRATEGY"
 
 vtune -report summary  -result-dir "$SCRATCH/r_hotspots" > "$SCRATCH/report_hotspots.txt"
