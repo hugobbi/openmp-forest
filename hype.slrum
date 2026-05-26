@@ -1,0 +1,44 @@
+#!/bin/bash
+#SBATCH --job-name=decision_tree_vtune
+#SBATCH --partition=hype
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=40
+#SBATCH --time=01:00:00
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
+
+set -euo pipefail
+
+source /home/intel/oneapi/vtune/2021.1.1/vtune-vars.sh
+
+PROJECT_NAME="openmp-forest"
+HOME_PROJECT="$HOME/$PROJECT_NAME"
+SCRATCH_PROJECT="$SCRATCH/$PROJECT_NAME"
+
+rm -rf "$SCRATCH_PROJECT"
+mkdir -p "$SCRATCH"
+cp -r "$HOME_PROJECT" "$SCRATCH_PROJECT"
+cd "$SCRATCH_PROJECT"
+
+make clean
+make -j
+
+THREADS="${SLURM_CPUS_PER_TASK:-40}"
+STRATEGY=p
+export OMP_NUM_THREADS="$THREADS"
+
+vtune -collect performance-snapshot -result-dir "$SCRATCH/r_snapshot" -- ./bin/dt_program "$THREADS" "$STRATEGY"
+vtune -collect hotspots              -result-dir "$SCRATCH/r_hotspots" -- ./bin/dt_program "$THREADS" "$STRATEGY"
+vtune -collect hpc-performance       -result-dir "$SCRATCH/r_hpc"      -- ./bin/dt_program "$THREADS" "$STRATEGY"
+
+vtune -report summary  -result-dir "$SCRATCH/r_hotspots" > "$SCRATCH/report_hotspots.txt"
+vtune -report hotspots -result-dir "$SCRATCH/r_hotspots" >> "$SCRATCH/report_hotspots.txt"
+vtune -report summary  -result-dir "$SCRATCH/r_hpc"      > "$SCRATCH/report_hpc.txt"
+
+cp -r "$SCRATCH/r_snapshot" "$HOME_PROJECT/"
+cp -r "$SCRATCH/r_hotspots" "$HOME_PROJECT/"
+cp -r "$SCRATCH/r_hpc"      "$HOME_PROJECT/"
+cp "$SCRATCH"/report_*.txt  "$HOME_PROJECT/"
+
+echo "Done. Results copied to $HOME_PROJECT"
