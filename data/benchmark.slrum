@@ -1,0 +1,65 @@
+#!/bin/bash
+#SBATCH --job-name=dt_benchmark
+#SBATCH --partition=hype
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=40
+#SBATCH --time=02:00:00
+#SBATCH --output=benchmark_%j.out
+#SBATCH --error=benchmark_%j.err
+
+set -euo pipefail
+
+PROJECT_NAME="openmp-forest"
+HOME_PROJECT="$HOME/$PROJECT_NAME"
+SCRATCH_PROJECT="$SCRATCH/$PROJECT_NAME"
+
+rm -rf "$SCRATCH_PROJECT"
+mkdir -p "$SCRATCH"
+cp -r "$HOME_PROJECT" "$SCRATCH_PROJECT"
+cd "$SCRATCH_PROJECT"
+
+make clean && make -j
+
+mkdir -p results
+
+# Estratégias paralelas: variam com o número de threads
+# Estratégia 's' (sequencial): roda só uma vez, com 1 thread (é o baseline)
+
+THREADS_LIST=(1 2 4 8 16 40)
+PARALLEL_STRATEGIES=(p t n P)
+RUNS=3  # número de repetições para tirar média
+
+echo "=============================="
+echo " Benchmark - Árvore de Decisão"
+echo "=============================="
+
+# --- Baseline sequencial (estratégia 's', 1 thread, RUNS vezes) ---
+echo ""
+echo "--- STRATEGY=s (sequencial / baseline) ---"
+for RUN in $(seq 1 $RUNS); do
+    echo "  RUN=$RUN"
+    OMP_NUM_THREADS=1 ./bin/dt_program 1 s
+done
+
+# --- Estratégias paralelas x número de threads ---
+for STRATEGY in "${PARALLEL_STRATEGIES[@]}"; do
+    echo ""
+    echo "--- STRATEGY=$STRATEGY ---"
+    for THREADS in "${THREADS_LIST[@]}"; do
+        echo "  THREADS=$THREADS"
+        for RUN in $(seq 1 $RUNS); do
+            echo "    RUN=$RUN"
+            OMP_NUM_THREADS=$THREADS ./bin/dt_program "$THREADS" "$STRATEGY"
+        done
+    done
+done
+
+echo ""
+echo "=============================="
+echo " Benchmark concluído"
+echo "=============================="
+
+# Copiar resultados para home
+cp -r results/ "$HOME_PROJECT/results_benchmark/"
+echo "Resultados copiados para $HOME_PROJECT/results_benchmark/"
