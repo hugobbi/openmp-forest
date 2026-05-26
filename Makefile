@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -D_GNU_SOURCE -I$(INCDIR) -fopenmp
+CFLAGS = -Wall -Wextra -D_GNU_SOURCE -I$(INCDIR) -fopenmp -g
 SRCDIR = src
 BINDIR = bin
 INCDIR = include

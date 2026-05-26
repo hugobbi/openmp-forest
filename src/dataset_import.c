@@ -123,6 +123,14 @@ Dataset *csv_read_delim(const char *path, char delim) {
             return NULL;
         }
         s->label = (int)label;
+        if (s->label >= MAX_CLASSES) {
+            fprintf(stderr, "csv_read: row %d: label %d exceeds MAX_CLASSES (%d)\n",
+                row, s->label, MAX_CLASSES);
+            free(samples);
+            fclose(fp);
+            free(line);
+            return NULL;
+        }
         if (s->label + 1 > n_classes) n_classes = s->label + 1;
 
         n_samples++;

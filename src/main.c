@@ -27,13 +27,16 @@
 */
 
 #define DEFAULT_NUM_THREADS 1
-#define DEFAULT_STRATEGY 'p' // default parallelization strategy: 'p' for splits, 't' for thresholded splits, 'n' for node-only, 'P' for always parallel
+#define DEFAULT_STRATEGY 'p' // default parallelization strategy: 'p' for splits, 't' for thresholded splits, 
+                             // 'n' for node-only, 'P' for always parallel, 's' for sequential
+#define TRAIN_DATA  "data/processed/ctype_train.csv"
+#define TEST_DATA   "data/processed/ctype_test.csv"
 
 int main(int argc, char *argv[])
 {
     // Load data
     printf("Loading training dataset...\n");
-    Dataset *ds = csv_read("data/processed/train.csv");
+    Dataset *ds = csv_read(TRAIN_DATA);
     if (!ds)
     {
         fprintf(stderr, "Failed to load train dataset\n");
@@ -71,7 +74,13 @@ int main(int argc, char *argv[])
 
     // "Train" tree
     printf("Building decision tree...\n");
-    int indices[MAX_SAMPLES];
+    int *indices = malloc((size_t)ds->n_samples * sizeof(int));
+    if (!indices)
+    {
+        fprintf(stderr, "Failed to allocate indices for %d samples\n", ds->n_samples);
+        dataset_free(ds);
+        return 1;
+    }
     for (int i = 0; i < ds->n_samples; i++)
         indices[i] = i;
     Node *tree = NULL;
@@ -85,13 +94,14 @@ int main(int argc, char *argv[])
             build_time = omp_get_wtime() - t0;
         }
     }
+    free(indices);
 
     printf("Tree built in %.4f seconds\n", build_time);
     printf("Tree depth: %d\n", get_tree_depth(tree));
 
     // Measure accuracy
     printf("Measuring accuracy in test dataset...\n");
-    Dataset *test_ds = csv_read("data/processed/test.csv");
+    Dataset *test_ds = csv_read(TEST_DATA);
     if (!test_ds)
     {
         fprintf(stderr, "Failed to load test dataset\n");
@@ -109,7 +119,7 @@ int main(int argc, char *argv[])
         avg_inference_time += inference_time;
         if (pred != test_ds->samples[i].label)
         {
-            printf("Sample %d: predicted %d, actual %d\n", i, pred, test_ds->samples[i].label);
+            // printf("Sample %d: predicted %d, actual %d\n", i, pred, test_ds->samples[i].label);
         }
         else
         {

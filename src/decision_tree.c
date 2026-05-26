@@ -70,15 +70,17 @@ BestSplit find_best_split_parallel(Sample *data, int *indices, int n,
 
 #pragma omp parallel
     {
-        // Each thread gets its own local array (stack allocated, private)
-        int sorted[MAX_SAMPLES];
-
         // Each thread tracks its own local best
         BestSplit local_best = {-1, 0.0, DBL_MAX};
+
+        // Each thread gets its own local array (heap allocated, private)
+        int *sorted = malloc((size_t)n * sizeof(int));
 
 #pragma omp for schedule(dynamic) // many splits are trivial to evaluate (va == vb), so dynamic scheduling helps load balance
         for (int f = 0; f < n_features; f++)
         {
+            if (!sorted)
+                continue;
             SortContext sort_ctx = {f, data}; // context for sorting by this feature
             memcpy(sorted, indices, n * sizeof(int));
             qsort_r(sorted, n, sizeof(int), cmp_by_feature, &sort_ctx);
@@ -137,6 +139,8 @@ BestSplit find_best_split_parallel(Sample *data, int *indices, int n,
                 best = local_best;
             }
         }
+
+        free(sorted);
     }
 
     return best;
@@ -147,7 +151,9 @@ BestSplit find_best_split_sequential(Sample *data, int *indices, int n,
 {
     BestSplit best = {-1, 0.0, DBL_MAX}; // shared best split across threads
 
-    int sorted[MAX_SAMPLES];
+    int *sorted = malloc((size_t)n * sizeof(int));
+    if (!sorted)
+        return best;
 
     for (int f = 0; f < n_features; f++)
     {
@@ -199,6 +205,8 @@ BestSplit find_best_split_sequential(Sample *data, int *indices, int n,
         }
     }
 
+    free(sorted);
+
     return best;
 }
 
@@ -232,8 +240,6 @@ Node *build_tree(Sample *data, int *indices, int n,
         split = find_best_split_sequential(data, indices, n, n_features, n_classes);
     }
 
-    // Split
-    // BestSplit split = find_best_split_parallel(data, indices, n, n_features, n_classes);
 
     // If no split was found, make leaf
     if (split.feature_index < 0)
@@ -247,38 +253,61 @@ Node *build_tree(Sample *data, int *indices, int n,
     node->threshold = split.threshold;
 
     // Split indices
-    int left_idx[MAX_SAMPLES], right_idx[MAX_SAMPLES];
     int nl = 0, nr = 0;
     for (int i = 0; i < n; i++)
     {
         if (data[indices[i]].features[split.feature_index] <= split.threshold)
-            left_idx[nl++] = indices[i];
+            nl++;
         else
-            right_idx[nr++] = indices[i];
+            nr++;
+    }
+
+    if (nl == 0 || nr == 0)
+    {
+        node->is_leaf = 1;
+        node->predicted_class = majority_class(data, indices, n, n_classes);
+        return node;
+    }
+
+    int *left_idx = malloc((size_t)nl * sizeof(int));
+    int *right_idx = malloc((size_t)nr * sizeof(int));
+    if (!left_idx || !right_idx)
+    {
+        free(left_idx);
+        free(right_idx);
+        node->is_leaf = 1;
+        node->predicted_class = majority_class(data, indices, n, n_classes);
+        return node;
+    }
+
+    int li = 0, ri = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (data[indices[i]].features[split.feature_index] <= split.threshold)
+            left_idx[li++] = indices[i];
+        else
+            right_idx[ri++] = indices[i];
     }
 
     if ((n >= PARALLEL_SPLIT_THRESHOLD && config == 't') || config == 'p' || config == 's')
     {
         node->left = build_tree(data, left_idx, nl, n_features, n_classes, depth + 1, max_depth, config);
         node->right = build_tree(data, right_idx, nr, n_features, n_classes, depth + 1, max_depth, config);
+        free(left_idx);
+        free(right_idx);
     }
     else
     {
-        int *li = malloc(nl * sizeof(int));
-        int *ri = malloc(nr * sizeof(int));
-        memcpy(li, left_idx, nl * sizeof(int));
-        memcpy(ri, right_idx, nr * sizeof(int));
-
-#pragma omp task shared(node) firstprivate(li, nl) if (nl > 1)
+#pragma omp task shared(node) firstprivate(left_idx, nl) if (nl > 1)
         {
-            node->left = build_tree(data, li, nl, n_features, n_classes, depth + 1, max_depth, config);
-            free(li);
+            node->left = build_tree(data, left_idx, nl, n_features, n_classes, depth + 1, max_depth, config);
+            free(left_idx);
         }
 
-#pragma omp task shared(node) firstprivate(ri, nr) if (nr > 1)
+#pragma omp task shared(node) firstprivate(right_idx, nr) if (nr > 1)
         {
-            node->right = build_tree(data, ri, nr, n_features, n_classes, depth + 1, max_depth, config);
-            free(ri);
+            node->right = build_tree(data, right_idx, nr, n_features, n_classes, depth + 1, max_depth, config);
+            free(right_idx);
         }
 
 #pragma omp taskwait
