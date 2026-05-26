@@ -79,7 +79,7 @@ BestSplit find_best_split_parallel(Sample *data, int *indices, int n,
 #pragma omp for schedule(dynamic) // many splits are trivial to evaluate (va == vb), so dynamic scheduling helps load balance
         for (int f = 0; f < n_features; f++)
         {
-            if (!sorted)
+            if (!sorted) // if malloc failed, skip parallel split search for this thread
                 continue;
             SortContext sort_ctx = {f, data}; // context for sorting by this feature
             memcpy(sorted, indices, n * sizeof(int));
@@ -152,7 +152,7 @@ BestSplit find_best_split_sequential(Sample *data, int *indices, int n,
     BestSplit best = {-1, 0.0, DBL_MAX}; // shared best split across threads
 
     int *sorted = malloc((size_t)n * sizeof(int));
-    if (!sorted)
+    if (!sorted) // if malloc failed, return no split found 
         return best;
 
     for (int f = 0; f < n_features; f++)
