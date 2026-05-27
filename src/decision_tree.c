@@ -3,7 +3,7 @@
 #include <float.h>
 #include <string.h>
 
-#define PARALLEL_SPLIT_THRESHOLD 100
+#define PARALLEL_SPLIT_THRESHOLD 1000
 
 typedef struct
 {
