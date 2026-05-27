@@ -22,7 +22,7 @@ Execute the compiled binary `bin/dt_program` passing the number of threads and t
 - `p`: Parallelize splits (node feature evaluations)
 - `t`: Parallelize splits if the number of samples is large, otherwise parallelize tree nodes.
 - `n`: Parallelize tree node creation only.
-- `P`: Parallelize both splits and node creation (no threshold).
+- `P`: Parallelize both splits and node creation.
 
 ### Usage Example
 Run with 4 threads using the split parallelization strategy (`p`):
