@@ -1,5 +1,5 @@
 # openmp-forest
-Decision Tree and Random Forest implementation in C using OpenMP for parallelization. (INF01008 Assignment)
+Decision Tree implementation in C using OpenMP for parallelization. (INF01008 Assignment)
 
 ## Build
 
