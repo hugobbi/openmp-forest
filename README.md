@@ -1,4 +1,4 @@
-# openmp-forest
+# openmp-decision-tree
 Decision Tree implementation in C using OpenMP for parallelization. (INF01008 Assignment)
 
 ## Build
